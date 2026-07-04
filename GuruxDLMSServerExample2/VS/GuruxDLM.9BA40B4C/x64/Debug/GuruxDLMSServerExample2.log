@@ -1,0 +1,63 @@
+﻿  apdu.c
+  asn1Parser.c
+  bigInteger.c
+  bitarray.c
+  bytebuffer.c
+  ciphering.c
+  client.c
+  converters.c
+  cosem.c
+  curve.c
+  datainfo.c
+  date.c
+  dlms.c
+  dlmsSettings.c
+  eccPoint.c
+  gx509Certificate.c
+  gxaes.c
+  gxarray.c
+  gxecdsa.c
+  gxget.c
+  Generating Code...
+  Compiling...
+  gxinvoke.c
+  gxkey.c
+  gxmd5.c
+  gxobjects.c
+  gxPkcs10.c
+  gxserializer.c
+  gxset.c
+  gxsetmalloc.c
+  gxsetignoremalloc.c
+  gxsha1.c
+  gxsha256.c
+  gxsha384.c
+  gxvalueeventargs.c
+  helpers.c
+  message.c
+  notify.c
+  objectarray.c
+  parameters.c
+  privateKey.c
+  publicKey.c
+  Generating Code...
+  Compiling...
+  replydata.c
+  server.c
+  serverevents.c
+  shamirs.c
+  variant.c
+  main.c
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(1602,27): warning C5286: implicit conversion from enum type 'DLMS_AUTO_CONNECT_MODE' to enum type 'DLMS_AUTO_ANSWER_MODE'; use an explicit cast to silence this warning
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(1655,15): warning C4996: 'gethostbyname': Use getaddrinfo() or GetAddrInfoW() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(2334,24): warning C4267: '=': conversion from 'size_t' to 'uint16_t', possible loss of data
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(2338,24): warning C4267: '=': conversion from 'size_t' to 'uint16_t', possible loss of data
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(3010,24): warning C4477: 'printf' : format string '%ld' requires an argument of type 'long', but variadic argument 2 has type 'size_t'
+      D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(3010,24):
+      consider using '%zu' in the format string
+  
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(5023,16): warning C4013: 'com_setCommState' undefined; assuming extern returning int
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(5200,19): warning C4244: '=': conversion from 'SOCKET' to 'int', possible loss of data
+D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\src\main.c(5647,14): warning C4244: '=': conversion from 'SOCKET' to 'int', possible loss of data
+  Generating Code...
+  GuruxDLMSServerExample2.vcxproj -> D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample2\VS\x64\Debug\GuruxDLMSServerExample2.exe

@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug GuruxDLMSServerExample2",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/GuruxDLMSServerExample2/VS/x64/Debug/GuruxDLMSServerExample2.exe",
+      "args": [
+        "-t",
+        "Info",
+        "-p",
+        "4061",
+        "-i",
+        "WRAPPER"
+      ],
+      "cwd": "${workspaceFolder}/GuruxDLMSServerExample2/VS/x64/Debug",
+      "stopAtEntry": false,
+      "console": "externalTerminal",
+      "preLaunchTask": "Build GuruxDLMSServerExample2 (MSBuild)"
+    }
+  ]
+}

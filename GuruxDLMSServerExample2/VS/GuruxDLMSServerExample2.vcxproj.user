@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArguments>-t Info -p 4061 -i WRAPPER</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArgumentsHistory>-tError|-t:Error|-t:Error -p:4060|-t:"Error" -p:"4060"|-t Info -p 4061 -i WRAPPER|</LocalDebuggerCommandArgumentsHistory>
+  </PropertyGroup>
+</Project>
