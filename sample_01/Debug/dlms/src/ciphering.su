@@ -1,0 +1,17 @@
+../dlms/src/ciphering.c:60:22:AUTHENTICATION_KEY_SIZE	16	static
+../dlms/src/ciphering.c:68:12:gxgcm_init	24	static
+../dlms/src/ciphering.c:79:13:gxgcm_increaseBlockCounter	16	static
+../dlms/src/ciphering.c:86:12:gxgcm_transformBlock	96	static
+../dlms/src/ciphering.c:128:13:gxgcm_xor	24	static
+../dlms/src/ciphering.c:138:13:gxgcm_shiftRight	24	static
+../dlms/src/ciphering.c:165:13:gxgcm_multiplyH	64	static
+../dlms/src/ciphering.c:197:13:gxgcm_getGHash	104	static
+../dlms/src/ciphering.c:290:12:gxgcm_getTag	72	static
+../dlms/src/ciphering.c:333:6:cip_init	24	static
+../dlms/src/ciphering.c:360:6:cip_clear	16	static
+../dlms/src/ciphering.c:388:12:cip_validateTag	80	static
+../dlms/src/ciphering.c:442:5:cip_crypt	336	static
+../dlms/src/ciphering.c:657:5:cip_encrypt	48	static
+../dlms/src/ciphering.c:710:5:cip_decrypt	88	static
+../dlms/src/ciphering.c:840:5:cip_encryptKey	128	static
+../dlms/src/ciphering.c:892:5:cip_decryptKey	88	static

@@ -1,0 +1,17 @@
+../dlms/src/dlmsSettings.c:50:6:svr_init	1
+../dlms/src/dlmsSettings.c:90:6:cl_init	2
+../dlms/src/dlmsSettings.c:174:6:cl_clear	1
+../dlms/src/dlmsSettings.c:214:6:svr_clear	1
+../dlms/src/dlmsSettings.c:221:6:plc_reset	4
+../dlms/src/dlmsSettings.c:260:6:resetBlockIndex	1
+../dlms/src/dlmsSettings.c:266:6:resetFrameSequence	2
+../dlms/src/dlmsSettings.c:281:15:increaseReceiverSequence	1
+../dlms/src/dlmsSettings.c:292:15:increaseSendSequence	1
+../dlms/src/dlmsSettings.c:299:15:checkFrame	31
+../dlms/src/dlmsSettings.c:407:15:getNextSend	2
+../dlms/src/dlmsSettings.c:421:15:getReceiverReady	1
+../dlms/src/dlmsSettings.c:428:15:getKeepAlive	1
+../dlms/src/dlmsSettings.c:436:15:isCiphered	1
+../dlms/src/dlmsSettings.c:443:6:trans_init	1
+../dlms/src/dlmsSettings.c:452:6:trans_clear	1
+../dlms/src/dlmsSettings.c:461:6:updateInvokeId	3

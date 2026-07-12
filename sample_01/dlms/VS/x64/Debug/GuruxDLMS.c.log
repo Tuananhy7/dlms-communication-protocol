@@ -1,0 +1,51 @@
+﻿  apdu.c
+  asn1Parser.c
+  bigInteger.c
+  bitarray.c
+  bytebuffer.c
+  ciphering.c
+  client.c
+  converters.c
+  cosem.c
+  curve.c
+  datainfo.c
+  date.c
+  dlms.c
+  dlmsSettings.c
+  eccPoint.c
+  gx509Certificate.c
+  gxaes.c
+  gxarray.c
+  gxecdsa.c
+  gxget.c
+  Generating Code...
+  Compiling...
+  gxinvoke.c
+  gxkey.c
+  gxmd5.c
+  gxobjects.c
+  gxPkcs10.c
+  gxset.c
+  gxsetignoremalloc.c
+  gxsetmalloc.c
+  gxsha1.c
+  gxsha256.c
+  gxsha384.c
+  gxvalueeventargs.c
+  helpers.c
+  message.c
+  notify.c
+  objectarray.c
+  parameters.c
+  privateKey.c
+  publicKey.c
+  replydata.c
+  Generating Code...
+  Compiling...
+  gxserializer.c
+  server.c
+  serverevents.c
+  shamirs.c
+  variant.c
+  Generating Code...
+  GuruxDLMS.c.vcxproj -> D:\workspace\smart_meter\dlms\GuruxDLMS.c\GuruxDLMSServerExample\VS\x64\Debug\GuruxDLMS.c.lib

@@ -1,0 +1,17 @@
+../dlms/src/gxarray.c:44:6:arr_init	16	static
+../dlms/src/gxarray.c:54:6:arr_isAttached	16	static
+../dlms/src/gxarray.c:59:10:arr_getCapacity	16	static
+../dlms/src/gxarray.c:64:6:arr_attach	24	static
+../dlms/src/gxarray.c:80:5:arr_capacity	16	static
+../dlms/src/gxarray.c:156:6:arr_clear	16	static
+../dlms/src/gxarray.c:187:6:arr_empty	16	static
+../dlms/src/gxarray.c:256:5:arr_getByIndex	24	static
+../dlms/src/gxarray.c:269:5:arr_getByIndex3	24	static
+../dlms/src/gxarray.c:288:5:arr_getByIndex2	24	static
+../dlms/src/gxarray.c:297:5:arr_getByIndex4	32	static
+../dlms/src/gxarray.c:306:5:arr_getByIndexRef	24	static
+../dlms/src/gxarray.c:320:5:arr_setByIndexRef	24	static
+../dlms/src/gxarray.c:332:6:arr_clearKeyValuePair	16	static
+../dlms/src/gxarray.c:357:6:arr_clearStrings	16	static
+../dlms/src/gxarray.c:401:5:arr_removeByIndex	32	static
+../dlms/src/gxarray.c:441:5:arr_swap	40	static

@@ -1,0 +1,16 @@
+../dlms/src/objectarray.c:50:6:oa_init	16	static
+../dlms/src/objectarray.c:60:6:oa_isAttached	16	static
+../dlms/src/objectarray.c:65:10:oa_getCapacity	16	static
+../dlms/src/objectarray.c:71:5:oa_capacity	16	static
+../dlms/src/objectarray.c:125:6:oa_attach	24	static
+../dlms/src/objectarray.c:135:5:oa_verify	32	static
+../dlms/src/objectarray.c:219:6:oa_copy	24	static
+../dlms/src/objectarray.c:231:6:oa_move	24	static
+../dlms/src/objectarray.c:247:6:oa_clear2	24	static
+../dlms/src/objectarray.c:273:6:oa_clear	16	static
+../dlms/src/objectarray.c:305:6:oa_empty	16	static
+../dlms/src/objectarray.c:325:5:oa_getByIndex	24	static
+../dlms/src/objectarray.c:339:5:oa_findBySN	40	static
+../dlms/src/objectarray.c:365:5:oa_findByLN	40	static
+../dlms/src/objectarray.c:394:5:oa_getObjects	48	static
+../dlms/src/objectarray.c:429:5:oa_getObjects2	48	static

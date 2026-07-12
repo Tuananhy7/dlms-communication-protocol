@@ -1,0 +1,4 @@
+../dlms/src/gxsha1.c:50:6:gxsha1_transform	48	static
+../dlms/src/gxsha1.c:148:6:gxsha1_update	96	static
+../dlms/src/gxsha1.c:162:5:gxsha1_final	120	static
+../dlms/src/gxsha1.c:211:5:gxsha1_encrypt	48	static
