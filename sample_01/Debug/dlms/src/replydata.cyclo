@@ -1,4 +1,0 @@
-../dlms/src/replydata.c:43:15:reply_isMoreData	1
-../dlms/src/replydata.c:51:6:reply_init	1
-../dlms/src/replydata.c:81:6:reply_clear2	2
-../dlms/src/replydata.c:113:6:reply_clear	1

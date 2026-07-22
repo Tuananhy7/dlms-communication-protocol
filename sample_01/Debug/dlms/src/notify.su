@@ -1,8 +1,0 @@
-../dlms/src/notify.c:47:5:notify_getData	24	static
-../dlms/src/notify.c:55:5:notify_addData	120	static
-../dlms/src/notify.c:88:5:notify_generateDataNotificationMessages2	96	static
-../dlms/src/notify.c:119:5:notify_generateDataNotificationMessages	48	static
-../dlms/src/notify.c:164:5:notify_generateEventNotificationMessages	104	static
-../dlms/src/notify.c:219:5:notify_generateEventNotificationMessages2	104	static
-../dlms/src/notify.c:251:5:notify_generatePushSetupMessages	144	static
-../dlms/src/notify.c:382:5:notify_parsePush	160	static

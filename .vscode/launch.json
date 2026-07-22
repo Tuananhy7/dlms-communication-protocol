@@ -8,7 +8,7 @@
       "program": "${workspaceFolder}/GuruxDLMSServerExample2/VS/x64/Debug/GuruxDLMSServerExample2.exe",
       "args": [
         "-t",
-        "Info",
+        "Off",
         "-p",
         "4061",
         "-i",

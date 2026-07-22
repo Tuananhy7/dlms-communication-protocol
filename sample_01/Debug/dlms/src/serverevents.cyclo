@@ -1,5 +1,0 @@
-../dlms/src/serverevents.c:40:6:svr_notifyTrace	1
-../dlms/src/serverevents.c:56:6:svr_notifyTrace2	1
-../dlms/src/serverevents.c:73:6:svr_notifyTrace3	1
-../dlms/src/serverevents.c:80:6:svr_notifyTrace4	1
-../dlms/src/serverevents.c:88:6:svr_notifyTrace5	1

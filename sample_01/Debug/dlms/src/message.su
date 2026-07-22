@@ -1,2 +1,0 @@
-../dlms/src/message.c:56:6:mes_attach	24	static
-../dlms/src/message.c:119:6:mes_clear	24	static

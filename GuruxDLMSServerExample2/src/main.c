@@ -15,7 +15,6 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
 
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
 //Windows doesn't implement strcasecmp. It uses strcmpi.
 #define strcasecmp _strcmpi
 
@@ -28,22 +27,6 @@
 #include <time.h>
 #include <process.h>//Add support for threads
 #include "../include/getopt.h"
-#else //Linux includes.
-#define closesocket close
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <termios.h>
-#include <sys/types.h>
-#include <sys/socket.h> //Add support for sockets
-#include <fcntl.h> //O_NONBLOCK needs this.
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <string.h>
-#include <sys/time.h>
-#include <errno.h>
-#endif
 
 #include "../dlms/include/dlmssettings.h"
 #include "../dlms/include/variant.h"
@@ -56,11 +39,7 @@
 #include "../dlms/include/gxset.h"
 
 //Serial port handlers.
-#if defined(_WIN32) || defined(_WIN64)// If Windows
 HANDLE comPort = INVALID_HANDLE_VALUE;
-#else //If Linux
-int comPort = -1;
-#endif
 
 #ifdef DLMS_WRITE_MULTIPLE_DATABLOCKS
 const char* partialFileName = "partial.hex";
@@ -368,11 +347,7 @@ typedef enum
 
 unsigned char fileExists(const char* fileName)
 {
-#if defined(_WIN64) || defined(_WIN32)
     return GetFileAttributes(fileName) != 0xFFFFFFFF;
-#else // defined(_WIN64) || defined(_WIN32)
-    return access(fileName, F_OK) == 0;
-#endif // defined(_WIN64) || defined(_WIN32)
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -496,11 +471,7 @@ void allocateImageTransfer(const char* fileName, uint32_t size)
 int getProfileGenericFileName(gxProfileGeneric* pg, char* fileName)
 {
     int ret = hlp_getLogicalNameToString(pg->base.logicalName, fileName);
-#if defined(_WIN64)
     strcat(fileName, "64.bin");
-#else // defined(_WIN32) || defined(__linux__)
-    strcat(fileName, ".bin");
-#endif //defined(_WIN32) || defined(__linux__)
     return ret;
 }
 
@@ -1647,7 +1618,6 @@ int addMacAddressSetup()
 unsigned long getIpAddress()
 {
     int ret = -1;
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
     struct hostent* phe;
     char ac[80];
     if ((ret = gethostname(ac, sizeof(ac))) != -1)
@@ -1660,16 +1630,9 @@ unsigned long getIpAddress()
         else
         {
             struct in_addr* addr = (struct in_addr*)phe->h_addr_list[0];
-#if defined(_WIN32) || defined(_WIN64)//If Windows
             return addr->S_un.S_addr;
-#else //or Linux
-            return addr->s_addr;
-#endif
         }
     }
-#else
-    //If no OS get IP.
-#endif
     return ret;
 }
 
@@ -2972,8 +2935,7 @@ int testobjectSerialization(gxObject* obj)
     gxSerializerSettings serializerSettings;
     ser_init(&serializerSettings);
     int ret = ser_saveObject(&serializerSettings, obj);
-#if !defined(GX_DLMS_SERIALIZER) && (defined(_WIN32) || defined(_WIN64) || defined(__linux__))
-#else
+#if defined(GX_DLMS_SERIALIZER)
     serializerSettings.position = 0;
 #endif
     obj_clear(obj);
@@ -3673,7 +3635,6 @@ void svr_preWrite(
     dlmsSettings* settings,
     gxValueEventCollection* args)
 {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
     char str[25];
     gxValueEventArg* e;
     int ret, pos;
@@ -3690,7 +3651,6 @@ void svr_preWrite(
         hlp_getLogicalNameToString(e->target->logicalName, str);
         printf("Writing %s\r\n", str);
     }
-#endif //defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
 }
 
 int sendPush(
@@ -3968,7 +3928,6 @@ void svr_preAction(
         if (e->target == BASE(imageTransfer))
         {
             e->handled = 1;
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
             FILE* f;
             gxImageTransfer* i = (gxImageTransfer*)e->target;
             const char* imageFile = "image.bin";
@@ -3986,9 +3945,7 @@ void svr_preAction(
                     e->error = DLMS_ERROR_CODE_INCONSISTENT_CLASS_OR_OBJECT;
                     return;
                 }
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                 printf("Updating image %s Size: %ld\r\n", imageFile, IMAGE_ACTIVATE_INFO[0].size);
-#endif
                 allocateImageTransfer(imageFile, IMAGE_ACTIVATE_INFO[0].size);
                 ba_clear(&i->imageTransferredBlocksStatus);
                 i->imageTransferStatus = DLMS_IMAGE_TRANSFER_STATUS_INITIATED;
@@ -4012,9 +3969,7 @@ void svr_preAction(
                 f = fopen(imageFile, "r+b");
                 if (!f)
                 {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                     printf("Unable to open file %s\r\n", imageFile);
-#endif
                     e->error = DLMS_ERROR_CODE_HARDWARE_FAULT;
                     return;
                 }
@@ -4035,9 +3990,7 @@ void svr_preAction(
                 f = fopen(imageFile, "rb");
                 if (!f)
                 {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                     printf("Unable to open file %s\r\n", imageFile);
-#endif
                     e->error = DLMS_ERROR_CODE_HARDWARE_FAULT;
                     return;
                 }
@@ -4054,16 +4007,12 @@ void svr_preAction(
                     //Wait 5 seconds before image is verified.  This is for example only.
                     if (time(NULL) - imageActionStartTime < 5)
                     {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                         printf("Image verification is on progress.\r\n");
-#endif
                         e->error = DLMS_ERROR_CODE_TEMPORARY_FAILURE;
                     }
                     else
                     {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                         printf("Image is verificated.\r\n");
-#endif
                         i->imageTransferStatus = DLMS_IMAGE_TRANSFER_STATUS_VERIFICATION_SUCCESSFUL;
                         imageActionStartTime = time(NULL);
                     }
@@ -4076,21 +4025,16 @@ void svr_preAction(
                 //Wait 5 seconds before image is activated. This is for example only.
                 if (time(NULL) - imageActionStartTime < 5)
                 {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                     printf("Image activation is on progress.\r\n");
-#endif
                     e->error = DLMS_ERROR_CODE_TEMPORARY_FAILURE;
                 }
                 else
                 {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)//If Windows or Linux
                     printf("Image is activated.\r\n");
-#endif
                     i->imageTransferStatus = DLMS_IMAGE_TRANSFER_STATUS_ACTIVATION_SUCCESSFUL;
                     imageActionStartTime = time(NULL);
                 }
             }
-#endif //defined(_WIN32) || defined(_WIN64) || defined(__linux__)
         }
     }
 }
@@ -4941,55 +4885,11 @@ int svr_getCompletePDU(
 }
 #endif //DLMS_WRITE_MULTIPLE_DATABLOCKS
 
-#if !defined(_WIN32) && !defined(_WIN64)//Windows
-
-static uint16_t GetLinuxBaudRate(uint16_t baudRate)
-{
-    uint16_t br;
-    switch (baudRate) {
-    case 110:
-        br = B110;
-        break;
-    case 300:
-        br = B300;
-        break;
-    case 600:
-        br = B600;
-        break;
-    case 1200:
-        br = B1200;
-        break;
-    case 2400:
-        br = B2400;
-        break;
-    case 4800:
-        br = B4800;
-        break;
-    case 9600:
-        br = B9600;
-        break;
-    case 19200:
-        br = B19200;
-        break;
-    case 38400:
-        br = B38400;
-        break;
-    case 57600:
-        br = B57600;
-        break;
-    default:
-        return B9600;
-    }
-    return br;
-}
-#endif //!defined(_WIN32) && !defined(_WIN64)//Windows
-
 int com_updateSerialportSettings(
     unsigned char iec,
     uint16_t baudRate)
 {
     int ret;
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
     DCB dcb = { 0 };
     unsigned long sendSize = 0;
     if (comPort == INVALID_HANDLE_VALUE)
@@ -5024,54 +4924,9 @@ int com_updateSerialportSettings(
     {
         return ret;
     }
-#else
-    struct termios options;
-    memset(&options, 0, sizeof(options));
-    options.c_iflag = 0;
-    options.c_oflag = 0;
-    if (iec)
-    {
-        options.c_cflag |= PARENB;
-        options.c_cflag &= ~PARODD;
-        options.c_cflag &= ~CSTOPB;
-        options.c_cflag &= ~CSIZE;
-        options.c_cflag |= CS7;
-        //Set Baud Rates
-        cfsetospeed(&options, B300);
-        cfsetispeed(&options, B300);
-    }
-    else
-    {
-        // 8n1, see termios.h for more information
-        options.c_cflag = CS8 | CREAD | CLOCAL;
-        /*
-        options.c_cflag &= ~PARENB
-        options.c_cflag &= ~CSTOPB
-        options.c_cflag &= ~CSIZE;
-        options.c_cflag |= CS8;
-        */
-        //Set Baud Rates
-        cfsetospeed(&options, GetLinuxBaudRate(baudRate));
-        cfsetispeed(&options, GetLinuxBaudRate(baudRate));
-    }
-    options.c_lflag = 0;
-    options.c_cc[VMIN] = 1;
-    //How long we are waiting reply charachter from serial port.
-    options.c_cc[VTIME] = 5;
-
-    //hardware flow control is used as default.
-    //options.c_cflag |= CRTSCTS;
-    if (tcsetattr(comPort, TCSAFLUSH, &options) != 0)
-    {
-        ret = errno;
-        printf("Failed to Open port. tcsetattr failed.\r");
-        return DLMS_ERROR_TYPE_COMMUNICATION_ERROR | ret;
-    }
-#endif
     return 0;
 }
 
-#if defined(_WIN32) || defined(_WIN64)//If Windows
 void serialPortThread(void* pVoid)
 {
     int ret;
@@ -5156,11 +5011,7 @@ void serialPortThread(void* pVoid)
                 {
                     //Wait until reply message is send before baud rate is updated.
                     //Without this delay, disconnect message might be cleared before send.
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
                     Sleep(100);
-#else
-                    usleep(100000);
-#endif
                     int baudRate = 300 << (int)settings.localPortSetup->defaultBaudrate;
                     printf("%s %d", "Disconnected with optical probe. The new baudrate is:", baudRate);
                     com_updateSerialportSettings(1, 300);
@@ -5172,15 +5023,10 @@ void serialPortThread(void* pVoid)
     CloseHandle(osReader.hEvent);
     CloseHandle(osWrite.hEvent);
 }
-#endif
 
 void ListenerThread(void* pVoid)
 {
-#if defined(_WIN32) || defined(_WIN64)//If Windows
     int len;
-#else //If Linux
-    socklen_t len;
-#endif
     unsigned char data;
     gxServerReply sr;
     sr_initialize(&sr, &data, 1, &reply);
@@ -5203,28 +5049,17 @@ void ListenerThread(void* pVoid)
             //Read one char at the time.
             if ((ret = recv(socket1, (char*)&data, 1, 0)) == -1)
             {
-#if defined(_WIN32) || defined(_WIN64)//If Windows
                 closesocket(socket1);
                 socket1 = INVALID_SOCKET;
-#else //If Linux
-                close(socket1);
-                socket1 = -1;
-#endif
                 break;
             }
             //If client closes the connection.
             if (ret == 0)
             {
-#if defined(_WIN32) || defined(_WIN64)//If Windows
                 closesocket(socket1);
                 socket1 = INVALID_SOCKET;
-#else //If Linux
-                close(socket1);
-                socket1 = -1;
-#endif
                 break;
             }
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
             if (trace > GX_TRACE_LEVEL_WARNING)
             {
                 // if (first)
@@ -5234,21 +5069,14 @@ void ListenerThread(void* pVoid)
                 }
                 printf("%.2X ", data);
             }
-#endif //OS
             if (svr_handleRequest4(&settings, &sr) != 0)
             {
-#if defined(_WIN32) || defined(_WIN64)//If Windows
                 closesocket(socket1);
                 socket1 = INVALID_SOCKET;
-#else //If Linux
-                close(socket1);
-                socket1 = -1;
-#endif
                 break;
             }
             if (reply.size != 0)
             {
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
                 if (trace > GX_TRACE_LEVEL_WARNING)
                 {
                     first = 1;
@@ -5259,16 +5087,10 @@ void ListenerThread(void* pVoid)
                     }
                     printf("\n");
                 }
-#endif //defined(_WIN32) || defined(_WIN64) || defined(__linux__)
                 if (send(socket1, (const char*)reply.data, reply.size - reply.position, 0) == -1)
                 {
-#if defined(_WIN32) || defined(_WIN64)//If Windows
                     closesocket(socket1);
                     socket1 = INVALID_SOCKET;
-#else //If Linux
-                    close(socket1);
-                    socket1 = -1;
-#endif
                     break;
                 }
                 if (settings.base.interfaceType == DLMS_INTERFACE_TYPE_HDLC_WITH_MODE_E && sr.newBaudRate != 0)
@@ -5292,112 +5114,6 @@ void ListenerThread(void* pVoid)
     }
 }
 
-//If Linux
-#if defined(__linux__)
-void* UnixSerialPortThread(void* pVoid)
-{
-    int ret;
-    unsigned char data;
-    unsigned char first = 1;
-    uint16_t pos;
-    int bytesRead;
-    gxServerReply sr;
-    sr_initialize(&sr, &data, 1, &reply);
-    while (1)
-    {
-        bytesRead = read(comPort, &data, 1);
-        if (bytesRead < 1)
-        {
-            //If there is no data on the read buffer.
-            if (errno != EAGAIN)
-            {
-                break;
-            }
-        }
-        else
-        {
-            if (trace > GX_TRACE_LEVEL_WARNING)
-            {
-                if (first)
-                {
-                    printf("\nRX:\t");
-                    first = 0;
-                }
-                printf("%.2X ", data);
-            }
-            if (svr_handleRequest4(&settings, &sr) != 0)
-            {
-                break;
-            }
-            if (reply.size != 0)
-            {
-                first = 1;
-                if (trace > GX_TRACE_LEVEL_WARNING)
-                {
-                    printf("\nTX\t");
-                    for (pos = 0; pos != reply.size; ++pos)
-                    {
-                        printf("%.2X ", reply.data[pos]);
-                    }
-                    printf("\n");
-                }
-                ret = write(comPort, reply.data, reply.size);
-                if (ret != reply.size)
-                {
-                    printf("Write failed\n");
-                }
-                if (settings.base.interfaceType == DLMS_INTERFACE_TYPE_HDLC_WITH_MODE_E && sr.newBaudRate != 0)
-                {
-                    if (settings.base.connected == DLMS_CONNECTION_STATE_IEC)
-                    {
-                        /*Change baud rate settings if optical probe is used.*/
-                        printf("%s %d", "Connected with optical probe. The new baudrate is:", sr.newBaudRate);
-                        com_updateSerialportSettings(0, sr.newBaudRate);
-                    }
-                    else if (settings.base.connected == DLMS_CONNECTION_STATE_NONE)
-                    {
-                        //Wait until reply message is send before baud rate is updated.
-                        //Without this delay, disconnect message might be cleared before send.
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
-                        Sleep(100);
-#else
-                        usleep(100000);
-#endif
-                        int baudRate = 300 << (int)settings.localPortSetup->defaultBaudrate;
-                        printf("%s %d", "Disconnected with optical probe. The new baudrate is:", baudRate);
-                        com_updateSerialportSettings(1, 300);
-                    }
-                }
-                bb_clear(&reply);
-            }
-        }
-    }
-    return NULL;
-}
-
-void* UnixListenerThread(void* pVoid)
-{
-    ListenerThread(pVoid);
-    return NULL;
-}
-
-char _getch()
-{
-    struct timeval tv;
-    fd_set fds;
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-    select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-    if (FD_ISSET(0, &fds))
-    {
-        return getchar();
-    }
-    return 0;
-}
-#endif
-
 void showHelp()
 {
     printf("Gurux DLMS example Server implements four DLMS/COSEM devices.\n");
@@ -5416,7 +5132,6 @@ void println(char* desc, unsigned char* data, char size)
     }
 }
 
-#if defined(_WIN32) || defined(_WIN64)
 int com_setCommState(HANDLE hWnd, LPDCB DCB)
 {
     if (!SetCommState(hWnd, DCB))
@@ -5470,44 +5185,12 @@ int com_initializeSerialPort(
     }
     return com_updateSerialportSettings(iec, 9600);
 }
-#else //#if defined(__LINUX__)
-int com_initializeSerialPort(
-    char* serialPort,
-    unsigned char iec)
-{
-    int ret;
-    // read/write | not controlling term | don't wait for DCD line signal.
-    comPort = open(serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (comPort == -1) // if open is unsuccessful.
-    {
-        ret = errno;
-        printf("Failed to open serial port: %s\n", serialPort);
-        return DLMS_ERROR_TYPE_COMMUNICATION_ERROR | ret;
-    }
-    if (!isatty(comPort))
-    {
-        ret = errno;
-        printf("Failed to Open port %s. This is not a serial port.\n", serialPort);
-        return DLMS_ERROR_TYPE_COMMUNICATION_ERROR | ret;
-    }
-    return com_updateSerialportSettings(iec, 9600);
-}
-#endif
 
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
 int _tmain(int argc, _TCHAR* argv[])
-#else
-int main(int argc, char* argv[])
-#endif
 {
     int opt, port = 4061;
-#if defined(_WIN32) || defined(_WIN64)//If Windows
     //Receiver thread handle.
     HANDLE receiverThread;
-#else //If Linux.
-    //Receiver thread handle.
-    pthread_t receiverThread;
-#endif
 
     int ret, ls = 0;
     struct sockaddr_in add = { 0 };
@@ -5590,14 +5273,12 @@ int main(int argc, char* argv[])
             return 1;
         }
     }
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         // Tell the user that we could not find a usable WinSock DLL.
         return 1;
     }
-#endif
     //Add FLAG ID.
     memcpy(SERVER_SYSTEM_TITLE, FLAG_ID, 3);
     //ADD serial number.
@@ -5634,11 +5315,7 @@ int main(int argc, char* argv[])
         {
             return ret;
         }
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
         receiverThread = (HANDLE)_beginthread(serialPortThread, 0, &comPort);
-#else
-        ret = pthread_create(&receiverThread, NULL, UnixSerialPortThread, &comPort);
-#endif
 
     }
     else
@@ -5650,18 +5327,10 @@ int main(int argc, char* argv[])
         add.sin_family = AF_INET;
         if ((ret = bind(ls, (struct sockaddr*)&add, sizeof(add))) == -1)
         {
-#if defined(_WIN32) || defined(_WIN64)//Windows
             ret = GetLastError();
-#else
-            ret = errno;
-#endif
             return DLMS_ERROR_TYPE_COMMUNICATION_ERROR | ret;
         }
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
         receiverThread = (HANDLE)_beginthread(ListenerThread, 0, &ls);
-#else
-        ret = pthread_create(&receiverThread, NULL, UnixListenerThread, &ls);
-#endif
     }
     printf("----------------------------------------------------------\n");
     printf("Authentication levels:\n");
@@ -5706,7 +5375,6 @@ int main(int argc, char* argv[])
                 printf("%lu seconds before next invoke %s", executeTime - start, ctime(&tmp));
             }
         }
-#if defined(_WIN32) || defined(_WIN64)//Windows includes
         if (_kbhit()) {
             char c = _getch();
             if (c == '\r')
@@ -5725,39 +5393,12 @@ int main(int argc, char* argv[])
             }
         }
         Sleep(1000);
-#else
-        char ch = _getch();
-        if (ch == '\n')
-        {
-            printf("Closing the server.\n");
-            if (comPort != -1)
-            {
-                close(comPort);
-                void* res;
-                pthread_join(receiverThread, (void**)&res);
-                free(res);
-            }
-            else
-            {
-                shutdown(ls, SHUT_RDWR);
-                closesocket(ls);
-                void* res;
-                pthread_join(receiverThread, (void**)&res);
-                free(res);
-            }
-            break;
-        }
-        usleep(1000000);
-#endif
     }
 
-#if defined(_WIN32) || defined(_WIN64)//Windows
     WSACleanup();
 #if _MSC_VER > 1400
     _CrtDumpMemoryLeaks();
 #endif
-#endif
 
     return 0;
 }
-
