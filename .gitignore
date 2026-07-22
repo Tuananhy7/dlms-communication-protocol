@@ -1,3 +1,5 @@
-# .agents
-# .codex
-# .gitattributes
+.agents
+.codex
+.gitattributes
+**/VS/x64
+**/VS/Gurux*
