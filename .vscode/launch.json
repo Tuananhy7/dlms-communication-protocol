@@ -18,6 +18,22 @@
       "stopAtEntry": false,
       "console": "externalTerminal",
       "preLaunchTask": "Build GuruxDLMSServerExample2 (MSBuild)"
+    },
+    {
+      "name": "Debug GuruxDLMSServerExample",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/GuruxDLMSServerExample/VS/x64/Debug/GuruxDLMSServerExample.exe",
+      "args": [
+        "-t",
+        "Off",
+        "-p",
+        "4061"
+      ],
+      "cwd": "${workspaceFolder}/GuruxDLMSServerExample/VS/x64/Debug",
+      "stopAtEntry": false,
+      "console": "externalTerminal",
+      "preLaunchTask": "Build GuruxDLMSServerExample (MSBuild)"
     }
   ]
 }

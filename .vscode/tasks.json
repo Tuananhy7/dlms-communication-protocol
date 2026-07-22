@@ -24,6 +24,30 @@
         "clear": true
       },
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build GuruxDLMSServerExample (MSBuild)",
+      "type": "process",
+      "command": "${env:ProgramFiles}\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe",
+      "args": [
+        "${workspaceFolder}\\GuruxDLMSServerExample\\VS\\GuruxDLMSServerExample.sln",
+        "/t:Build",
+        "/p:Configuration=Debug",
+        "/p:Platform=x64"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": "$msCompile"
     }
   ]
 }

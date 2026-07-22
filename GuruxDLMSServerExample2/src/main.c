@@ -28,15 +28,15 @@
 #include <process.h>//Add support for threads
 #include "../include/getopt.h"
 
-#include "../dlms/include/dlmssettings.h"
-#include "../dlms/include/variant.h"
-#include "../dlms/include/cosem.h"
-#include "../dlms/include/server.h"
+#include "../../dlms/include/dlmssettings.h"
+#include "../../dlms/include/variant.h"
+#include "../../dlms/include/cosem.h"
+#include "../../dlms/include/server.h"
 //Add this if you want to send notify messages.
-#include "../dlms/include/notify.h"
+#include "../../dlms/include/notify.h"
 //Add support for serialization.
-#include "../dlms/include/gxserializer.h"
-#include "../dlms/include/gxset.h"
+#include "../../dlms/include/gxserializer.h"
+#include "../../dlms/include/gxset.h"
 
 //Serial port handlers.
 HANDLE comPort = INVALID_HANDLE_VALUE;
