@@ -1,0 +1,2 @@
+../dlms/src/parameters.c:36:6:params_initSN	24	static
+../dlms/src/parameters.c:63:6:params_initLN	24	static

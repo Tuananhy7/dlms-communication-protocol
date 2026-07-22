@@ -1,0 +1,17 @@
+../dlms/src/apdu.c:46:5:apdu_getAuthenticationString	18
+../dlms/src/apdu.c:118:5:apdu_generateApplicationContextName	39
+../dlms/src/apdu.c:221:15:useDedicatedKey	1
+../dlms/src/apdu.c:243:5:apdu_getInitiateRequest	15
+../dlms/src/apdu.c:315:5:apdu_generateUserInformation	8
+../dlms/src/apdu.c:396:5:apdu_parseUserInformation	64
+../dlms/src/apdu.c:745:5:apdu_verifyUserInformation	42
+../dlms/src/apdu.c:981:5:apdu_parseApplicationContextName	25
+../dlms/src/apdu.c:1094:5:apdu_validateAare	5
+../dlms/src/apdu.c:1125:5:apdu_updatePassword	10
+../dlms/src/apdu.c:1172:5:apdu_updateAuthentication	16
+../dlms/src/apdu.c:1263:5:apdu_getUserInformation	20
+../dlms/src/apdu.c:1351:5:apdu_generateAarq	6
+../dlms/src/apdu.c:1378:5:apdu_handleResultComponent	6
+../dlms/src/apdu.c:1406:5:apdu_parseProtocolVersion	7
+../dlms/src/apdu.c:1437:5:apdu_parsePDU	131
+../dlms/src/apdu.c:2140:5:apdu_generateAARE	43

@@ -1,0 +1,16 @@
+../dlms/src/bitarray.c:47:10:ba_getByteCount	24	static
+../dlms/src/bitarray.c:62:5:getByteIndex	24	static
+../dlms/src/bitarray.c:70:6:ba_init	16	static
+../dlms/src/bitarray.c:81:6:ba_isAttached	16	static
+../dlms/src/bitarray.c:86:10:ba_getCapacity	16	static
+../dlms/src/bitarray.c:91:10:ba_size	16	static
+../dlms/src/bitarray.c:96:6:ba_attach	24	static
+../dlms/src/bitarray.c:111:5:ba_capacity	16	static
+../dlms/src/bitarray.c:171:5:ba_set	16	static
+../dlms/src/bitarray.c:177:5:ba_setByIndex	32	static
+../dlms/src/bitarray.c:247:5:ba_copy	40	static
+../dlms/src/bitarray.c:268:6:ba_clear	16	static
+../dlms/src/bitarray.c:288:5:ba_get	24	static
+../dlms/src/bitarray.c:299:5:ba_getByIndex	40	static
+../dlms/src/bitarray.c:311:5:ba_toInteger	32	static
+../dlms/src/bitarray.c:356:5:ba_toString2	32	static

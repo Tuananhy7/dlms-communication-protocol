@@ -1,0 +1,16 @@
+../dlms/src/gxaes.c:107:22:getSBoxValue	16	static
+../dlms/src/gxaes.c:127:22:getRCon	16	static
+../dlms/src/gxaes.c:137:19:gxaes_xtime	16	static
+../dlms/src/gxaes.c:142:19:gxaes_multiply	24	static
+../dlms/src/gxaes.c:151:10:gxaes_subBytes	32	static
+../dlms/src/gxaes.c:164:10:gxaes_shiftRows	24	static
+../dlms/src/gxaes.c:189:10:gxaes_mixColumns	24	static
+../dlms/src/gxaes.c:211:10:gxaes_addRoundKey	32	static
+../dlms/src/gxaes.c:226:17:gxaes_rotWord	24	static
+../dlms/src/gxaes.c:234:17:gxaes_subWord	32	static
+../dlms/src/gxaes.c:243:17:gxaes_invShiftRows	24	static
+../dlms/src/gxaes.c:269:17:gxaes_invMixColumns	32	static
+../dlms/src/gxaes.c:286:10:gxaes_keyExpansion	32	static
+../dlms/src/gxaes.c:327:10:gxaes_cipher	32	static
+../dlms/src/gxaes.c:373:9:gxaes_encrypt	352	static
+../dlms/src/gxaes.c:416:9:gxaes_decrypt	352	static

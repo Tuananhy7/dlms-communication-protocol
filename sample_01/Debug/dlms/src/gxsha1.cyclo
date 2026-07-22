@@ -1,0 +1,4 @@
+../dlms/src/gxsha1.c:50:6:gxsha1_transform	1
+../dlms/src/gxsha1.c:148:6:gxsha1_update	3
+../dlms/src/gxsha1.c:162:5:gxsha1_final	10
+../dlms/src/gxsha1.c:211:5:gxsha1_encrypt	1
