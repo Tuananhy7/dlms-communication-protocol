@@ -21,7 +21,8 @@
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "clear": true
+        "clear": true,
+        "close": true
       },
       "problemMatcher": "$msCompile"
     },
@@ -45,7 +46,8 @@
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
-        "clear": true
+        "clear": true,
+        "close": true
       },
       "problemMatcher": "$msCompile"
     }
