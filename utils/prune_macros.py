@@ -46,8 +46,38 @@ marker/content hay khong (ca 2 nhanh deu co).
      Dung --defines-file <path> de XUAT danh sach macro suy luan duoc
      (defined=true) ra file, tien theo doi/audit hoac doi chieu thu cong.
 
+     NGOAI LE duy nhat duoc suy luan ma KHONG can tuong quan #if defined(X):
+     pattern "include guard" kinh dien #ifndef X / #define X (xem ham
+     is_include_guard) - vi #define X nam ngay trong nhanh #ifndef X nen tu
+     than no khong the anh huong ket qua danh gia cua chinh no, suy ra X
+     chac chan chua dinh nghia truoc do TRONG FILE NAY. Khac voi cac macro
+     suy luan thong thuong (duoc GHI VAO macro_truth roi XOA directive nhu
+     1 group da resolve binh thuong), include guard duoc resolve_group tra
+     ve rieng qua sentinel 'GUARD': KHONG canh bao, nhung dong #ifndef/#endif
+     duoc GIU NGUYEN (khong xoa) - chi noi dung BEN TRONG moi tiep tuc duoc
+     de quy prune nhu thuong. Ly do giu nguyen thay vi xoa: header thuong
+     bao toan bo than file trong 1 include guard duy nhat; giu lai 2 dong
+     directive vo hai nay an toan hon la coi no nhu macro suy luan thong
+     thuong roi lam sai trong truong hop hiem gap.
+
+     NGOAI LE THU HAI (cung sentinel 'GUARD'): #ifdef/#ifndef voi ten macro
+     thuoc KNOWN_BUILTIN_MACROS (hien tai: __cplusplus) - day la macro do
+     COMPILER dinh nghia san, khong phai macro cua codebase, nen KHONG BAO
+     GIO co the tuong quan qua "#if defined(X)" o noi khac (vi #ifdef X
+     chinh la cach DUY NHAT de kiem tra no). Neu group chi co 1 nhanh don
+     gian (#ifdef __cplusplus / #endif, khong #else), xu ly giong include
+     guard: giu nguyen directive, khong canh bao, van de quy vao ben trong.
+     Neu group co nhieu nhanh (vd co #else) thi khong the chon nhanh nao de
+     de quy -> tra ve 'SILENT_UNRESOLVED': giu nguyen CA GROUP (nhu
+     UNRESOLVED) nhung KHONG canh bao (vi day la truong hop DA BIET TRUOC).
+
   3. Parse file .cpp/.h goc thanh cay khoi dieu kien (nhu v1, co comment-
-     aware de tranh nham #ifdef trong /* */).
+     aware de tranh nham #ifdef trong /* */). Directive nhieu dong noi bang
+     '\\' cuoi dong duoc GOM lai thanh 1 khoi logic (xem
+     directive_end_line_idx/directive_full_text) - ca khi doi chieu ground-
+     truth (.i annotate tai dong VAT LY CUOI CUNG cua directive, khong phai
+     dong dau) lan khi tach noi dung than nhanh (cac dong noi khong duoc
+     tinh la code).
 
   4. Voi moi group (#if/.../#endif), dung ket qua buoc 1+2 de chon dung
      1 nhanh song, xoa cac nhanh con lai VA xoa directive.
@@ -59,6 +89,12 @@ marker/content hay khong (ca 2 nhanh deu co).
   - Dieu kien phuc tap (vd "#if defined(A) && defined(B)") KHONG the suy
     ra tung macro rieng le cho #ifdef tuong quan - chi ho tro dang don
     gian: defined(X), !defined(X), hoac bare macro sau ifdef/ifndef.
+  - Include guard chi duoc nhan dien khi group chi co 1 nhanh #ifndef
+    (khong #elif/#else) VA dong noi dung dau tien la #define cung ten.
+    Khong yeu cau phai la TOP-LEVEL - include guard long trong dieu kien
+    khac van duoc nhan dien theo cung tieu chi. Neu khong khop du 2 dieu
+    kien tren, van roi ve duong xu ly thong thuong (co the UNRESOLVED va
+    canh bao nhu cu).
 """
 
 import re
@@ -202,6 +238,32 @@ def compute_line_start_in_code(lines):
     return line_start_in_code
 
 
+def directive_end_line_idx(lines, start_idx):
+    """
+    Tra ve index (0-based) cua dong VAT LY CUOI CUNG thuoc cung 1 directive,
+    tinh ca cac dong noi bang '\\' o cuoi dong (line continuation). Neu
+    directive chi nam tren 1 dong, tra ve chinh start_idx.
+
+    QUAN TRONG: khi mot #if/#elif/#ifdef/#ifndef trai dai nhieu dong vat ly
+    bang '\\', Clang/-frewrite-includes GOP toan bo thanh 1 dong annotation
+    "#if 0/1 ..." duy nhat trong .i, roi COPY NOI DUNG TU DONG SAU CUNG cua
+    directive goc (khong phai dong dau tien "#if"/"#elif"). Vi vay ground-
+    truth o Buoc 1 (body_line - 1) tro toi dong CUOI CUNG cua directive, va
+    moi noi doi chieu voi truths[] deu phai dung dong nay, khong phai
+    directive_line_idx (dong dau tien) - neu khong se bi lech va bao loi
+    "khong tim thay entry evaluated trong .i" mot cach sai lech.
+    """
+    idx = start_idx
+    n = len(lines)
+    while idx < n - 1:
+        stripped = lines[idx].rstrip('\r\n').rstrip()
+        if stripped.endswith('\\'):
+            idx += 1
+        else:
+            break
+    return idx
+
+
 def parse_conditional_tree(lines):
     root = []
     stack = []
@@ -225,10 +287,11 @@ def parse_conditional_tree(lines):
         m = DIRECTIVE_RE.match(line) if line_start_in_code[i] else None
         if m:
             flush_code(i)
+            end_idx = directive_end_line_idx(lines, i)
             kind = m.group(1)
             if kind in ('if', 'ifdef', 'ifndef'):
                 grp = Group()
-                branch = Branch(directive_line_idx=i, content_start=i + 1)
+                branch = Branch(directive_line_idx=i, content_start=end_idx + 1)
                 grp.branches.append(branch)
                 current_output().append(('group', grp))
                 stack.append((grp, branch.children))
@@ -237,7 +300,7 @@ def parse_conditional_tree(lines):
                     raise ValueError(f"#{kind} khong co #if tuong ung tai dong {i+1}")
                 grp, _ = stack[-1]
                 grp.branches[-1].content_end = i
-                branch = Branch(directive_line_idx=i, content_start=i + 1)
+                branch = Branch(directive_line_idx=i, content_start=end_idx + 1)
                 grp.branches.append(branch)
                 stack[-1] = (grp, branch.children)
             elif kind == 'endif':
@@ -246,7 +309,8 @@ def parse_conditional_tree(lines):
                 grp, _ = stack.pop()
                 grp.branches[-1].content_end = i
                 grp.endif_line_idx = i
-            code_start = i + 1
+            code_start = end_idx + 1
+            i = end_idx
         i += 1
 
     flush_code(n)
@@ -259,16 +323,106 @@ def parse_conditional_tree(lines):
 # BUOC 2 + 4: Tuong quan ten macro cho #ifdef/#ifndef, roi resolve + render
 # ---------------------------------------------------------------------------
 
-MACRO_DEFINED_RE = re.compile(r'^\s*#\s*(if|elif)\s+defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?\s*$')
-MACRO_NOTDEFINED_RE = re.compile(r'^\s*#\s*(if|elif)\s+!\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?\s*$')
-IFDEF_RE = re.compile(r'^\s*#\s*ifdef\s+([A-Za-z_]\w*)\s*$')
-IFNDEF_RE = re.compile(r'^\s*#\s*ifndef\s+([A-Za-z_]\w*)\s*$')
+# Hau to comment tuy chon (/* ... */ hoac // ...) o cuoi directive - idiom
+# rat pho bien (vd "#ifndef X /* X */", "#endif // X") ma cac directive
+# don gian van phai nhan dien duoc, khong the doi hoi $ ngay sau ten macro.
+TRAILING_COMMENT_SUFFIX = r'\s*(?:/\*.*\*/\s*|//.*)?$'
+
+MACRO_DEFINED_RE = re.compile(r'^\s*#\s*(if|elif)\s+defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?' + TRAILING_COMMENT_SUFFIX)
+MACRO_NOTDEFINED_RE = re.compile(r'^\s*#\s*(if|elif)\s+!\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?' + TRAILING_COMMENT_SUFFIX)
+IFDEF_RE = re.compile(r'^\s*#\s*ifdef\s+([A-Za-z_]\w*)' + TRAILING_COMMENT_SUFFIX)
+IFNDEF_RE = re.compile(r'^\s*#\s*ifndef\s+([A-Za-z_]\w*)' + TRAILING_COMMENT_SUFFIX)
+
+# Macro do COMPILER/NGON NGU dinh nghia san (built-in), KHONG PHAI macro cua
+# chinh codebase - vi vay khong bao gio the tuong quan qua "#if defined(X)"
+# o noi khac trong file (vi #ifdef X chinh la cach DUY NHAT ma code C/C++
+# dung de kiem tra su ton tai cua no; khong ai "#define __cplusplus" ca).
+# Gia tri that su phu thuoc ngon ngu/compiler dung de bien dich file nay
+# (vd __cplusplus chi duoc dinh nghia khi bien dich nhu C++), nam NGOAI
+# pham vi suy luan TINH (static) cua 1 file don le. Khi gap #ifdef/#ifndef
+# voi ten macro trong danh sach nay ma khong co bang chung nao khac, script
+# KHONG canh bao (vi day la truong hop DA BIET TRUOC, khong phai loi suy
+# luan), va van GIU NGUYEN directive (an toan, giong include guard).
+KNOWN_BUILTIN_MACROS = {'__cplusplus'}
 DIRECTIVE_KIND_RE = re.compile(r'^\s*#\s*(if|ifdef|ifndef|elif|else)\b')
+DEFINE_NAME_RE = re.compile(r'^\s*#\s*define\s+([A-Za-z_]\w*)\b')
 
 
 def directive_kind(line):
     m = DIRECTIVE_KIND_RE.match(line)
     return m.group(1) if m else None
+
+
+def directive_full_text(lines, start_idx, end_idx):
+    """
+    Noi cac dong vat ly tu start_idx den end_idx (ca 2 dau) thanh 1 chuoi
+    logic, bo ky tu noi dong '\\' va xuong dong, dung de match cac regex
+    dieu kien don gian (defined(X), ifdef X...) khi directive trai dai
+    nhieu dong vat ly.
+    """
+    if end_idx <= start_idx:
+        return lines[start_idx].rstrip('\r\n')
+    parts = []
+    for i in range(start_idx, end_idx + 1):
+        seg = lines[i].rstrip('\r\n').rstrip()
+        if seg.endswith('\\'):
+            seg = seg[:-1].rstrip()
+        parts.append(seg)
+    return ' '.join(parts)
+
+
+def is_include_guard(grp, lines):
+    """
+    Nhan dien pattern "include guard" kinh dien cua header file:
+        #ifndef X
+        #define X
+        ...
+        #endif
+    (khong co #elif/#else). Day la idiom PHO BIEN NHAT trong C/C++ header,
+    duoc MOI compiler cong nhan.
+
+    Ly do suy luan an toan: Clang khong annotate #ifdef/#ifndef (xem docstring
+    dau file), nen binh thuong script KHONG co bang chung nao cho #ifndef X
+    neu X khong tung xuat hien duoi dang #if defined(X)/#elif defined(X) o
+    noi khac. Nhung voi dung pattern nay, dong #define X nam NGAY BEN TRONG
+    nhanh #ifndef X - tuc la trong pham vi file nay, X chi co THE duoc dinh
+    nghia tai chinh dong do. Vi #define X nam SAU diem kiem tra #ifndef X,
+    no khong the anh huong ket qua cua chinh no => tai thoi diem #ifndef
+    duoc danh gia, X chac chan CHUA duoc dinh nghia boi BAT KY dieu gi truoc
+    do TRONG FILE NAY => nhanh #ifndef luon la nhanh song.
+    (Truong hop hiem: X da duoc -D tu ben ngoai compiler flag, hoac header
+    nay da duoc include truoc do trong cung 1 TU - ca hai deu nam ngoai
+    pham vi 1 file don le ma script nay xu ly.)
+
+    CHU Y: khac voi cach suy luan macro thong thuong (dien gia tri vao
+    macro_truth roi de resolve_group tu chon nhanh song va XOA directive),
+    include guard duoc xu ly RIENG: resolve_group tra ve sentinel 'GUARD'
+    va render_items GIU NGUYEN dong #ifndef/#endif (khong xoa), chi de quy
+    binh thuong vao noi dung BEN TRONG. Ly do: header thuong bao toan bo
+    than file trong 1 include guard duy nhat - neu xoa han directive nay
+    (nhu 1 group duoc "resolve" binh thuong) thi khong sao ve mat noi dung,
+    nhung neu coi no la macro suy luan thong thuong va lam SAI (vd macro
+    trung ten voi 1 dieu kien khac phuc tap hon) thi rui ro cao hon nhieu
+    so voi chi giu nguyen 2 dong directive vo hai nay.
+    """
+    if len(grp.branches) != 1:
+        return False
+    branch = grp.branches[0]
+    if directive_kind(lines[branch.directive_line_idx]) != 'ifndef':
+        return False
+    end_idx = directive_end_line_idx(lines, branch.directive_line_idx)
+    full_text = directive_full_text(lines, branch.directive_line_idx, end_idx)
+    m = IFNDEF_RE.match(full_text)
+    if not m:
+        return False
+    macro = m.group(1)
+    for ln in lines[branch.content_start:branch.content_end]:
+        stripped = ln.strip()
+        if not stripped:
+            continue
+        dm = DEFINE_NAME_RE.match(stripped)
+        return bool(dm and dm.group(1) == macro)
+    return False
 
 
 def export_defines_file(macro_truth, output_path):
@@ -304,6 +458,10 @@ def build_macro_truth_table(tree, lines, target_fname, truths):
     Dung de resolve #ifdef/#ifndef sau nay (macro cung ten thi cung trang
     thai dinh nghia trong suot 1 lan build, tru truong hop #undef xen giua
     - khong duoc xu ly o day).
+
+    LUU Y: include guard (#ifndef X / #define X) KHONG di qua bang nay -
+    no duoc resolve_group nhan dien rieng qua is_include_guard() va xu ly
+    bang sentinel 'GUARD' (giu nguyen directive, van de quy vao ben trong).
     """
     macro_truth = {}
 
@@ -313,16 +471,16 @@ def build_macro_truth_table(tree, lines, target_fname, truths):
                 continue
             _, grp = item
             for branch in grp.branches:
-                line = lines[branch.directive_line_idx]
-                directive_line_1based = branch.directive_line_idx + 1
-                key = (target_fname, directive_line_1based)
+                end_idx = directive_end_line_idx(lines, branch.directive_line_idx)
+                full_text = directive_full_text(lines, branch.directive_line_idx, end_idx)
+                key = (target_fname, end_idx + 1)
                 if key in truths:
                     val = truths[key]
-                    m1 = MACRO_DEFINED_RE.match(line)
+                    m1 = MACRO_DEFINED_RE.match(full_text)
                     if m1:
                         macro_truth.setdefault(m1.group(2), val)
                         continue
-                    m2 = MACRO_NOTDEFINED_RE.match(line)
+                    m2 = MACRO_NOTDEFINED_RE.match(full_text)
                     if m2:
                         macro_truth.setdefault(m2.group(2), not val)
                         continue
@@ -336,16 +494,34 @@ def resolve_group(grp, lines, target_fname, truths, macro_truth, unresolved):
     Tra ve index cua branch 'song' trong grp.branches, hoac None neu
     khong nhanh nao song (vd #if false, khong co #else), hoac 'UNRESOLVED'
     neu co branch #ifdef/#ifndef khong the xac dinh -> trong truong hop
-    nay GIU NGUYEN toan bo group (an toan hon la doan bay).
+    nay GIU NGUYEN toan bo group (an toan hon la doan bay), hoac 'GUARD'
+    neu day la include guard kinh dien (#ifndef X / #define X) hoac group
+    chi co 1 nhanh #ifdef/#ifndef voi ten macro thuoc KNOWN_BUILTIN_MACROS
+    (xem is_include_guard) - ca 2 truong hop nay KHONG canh bao, va
+    render_items se GIU NGUYEN dong #ifdef|#ifndef/#endif nhung van de quy
+    vao ben trong de tiep tuc prune noi dung binh thuong. Neu group nhieu
+    nhanh (co #else) va van khong the resolve do macro built-in, tra ve
+    'SILENT_UNRESOLVED' - giu nguyen CA GROUP (khong the chon nhanh nao de
+    de quy) nhung cung KHONG canh bao.
     """
+    if is_include_guard(grp, lines):
+        return 'GUARD'
+
     true_idx = None
     has_unresolved = False
+    has_silent_unresolved = False
 
     for idx, branch in enumerate(grp.branches):
         line = lines[branch.directive_line_idx]
         kind = directive_kind(line)
-        directive_line_1based = branch.directive_line_idx + 1
-        key = (target_fname, directive_line_1based)
+        start_line_1based = branch.directive_line_idx + 1
+        end_idx = directive_end_line_idx(lines, branch.directive_line_idx)
+        full_text = directive_full_text(lines, branch.directive_line_idx, end_idx)
+        # Ground-truth trong .i tro toi dong VAT LY CUOI CUNG cua directive
+        # (xem directive_end_line_idx), khong phai dong dau tien - directive
+        # nhieu dong noi bang '\' phai doi chieu bang end_idx + 1.
+        key = (target_fname, end_idx + 1)
+        display_text = line.strip() if end_idx == branch.directive_line_idx else full_text
 
         if kind in ('if', 'elif'):
             if key in truths:
@@ -354,30 +530,34 @@ def resolve_group(grp, lines, target_fname, truths, macro_truth, unresolved):
                 continue
             else:
                 has_unresolved = True
-                unresolved.append((directive_line_1based, line.strip(), 'khong tim thay entry evaluated trong .i'))
+                unresolved.append((start_line_1based, display_text, 'khong tim thay entry evaluated trong .i'))
                 continue
 
         if kind == 'ifdef':
-            m = IFDEF_RE.match(line)
+            m = IFDEF_RE.match(full_text)
             macro = m.group(1) if m else None
             if macro and macro in macro_truth:
                 if macro_truth[macro]:
                     true_idx = idx
+            elif macro in KNOWN_BUILTIN_MACROS:
+                has_silent_unresolved = True
             else:
                 has_unresolved = True
-                unresolved.append((directive_line_1based, line.strip(),
+                unresolved.append((start_line_1based, display_text,
                                     f"khong the suy luan macro '{macro}' - .i khong danh dau #ifdef, va khong tim thay #if defined({macro}) tuong quan trong file nay"))
             continue
 
         if kind == 'ifndef':
-            m = IFNDEF_RE.match(line)
+            m = IFNDEF_RE.match(full_text)
             macro = m.group(1) if m else None
             if macro and macro in macro_truth:
                 if not macro_truth[macro]:
                     true_idx = idx
+            elif macro in KNOWN_BUILTIN_MACROS:
+                has_silent_unresolved = True
             else:
                 has_unresolved = True
-                unresolved.append((directive_line_1based, line.strip(),
+                unresolved.append((start_line_1based, display_text,
                                     f"khong the suy luan macro '{macro}' - .i khong danh dau #ifndef, va khong tim thay #if defined({macro}) tuong quan trong file nay"))
             continue
 
@@ -396,6 +576,17 @@ def resolve_group(grp, lines, target_fname, truths, macro_truth, unresolved):
     if directive_kind(last_line) == 'else':
         return len(grp.branches) - 1
 
+    if has_silent_unresolved:
+        # Chi con lai cac nhanh khong the resolve vi macro built-in (vd
+        # __cplusplus) - khong canh bao. Neu group chi co 1 nhanh don gian
+        # (vd "#ifdef __cplusplus / #endif"), an toan de GIU NGUYEN directive
+        # va van de quy vao ben trong (giong GUARD). Neu co nhieu nhanh
+        # (vd co #else) thi khong the chon nhanh nao de de quy -> giu
+        # nguyen CA GROUP, khong canh bao.
+        if len(grp.branches) == 1:
+            return 'GUARD'
+        return 'SILENT_UNRESOLVED'
+
     return None  # khong nhanh nao song, ca group bi loai bo
 
 
@@ -407,10 +598,20 @@ def render_items(items, lines, target_fname, truths, macro_truth, unresolved, ou
         else:
             _, grp = item
             choice = resolve_group(grp, lines, target_fname, truths, macro_truth, unresolved)
-            if choice == 'UNRESOLVED':
+            if choice in ('UNRESOLVED', 'SILENT_UNRESOLVED'):
                 start = grp.branches[0].directive_line_idx
                 end = grp.endif_line_idx + 1
                 out.extend(lines[start:end])
+            elif choice == 'GUARD':
+                # Include guard hoac #ifdef/#ifndef macro built-in da biet
+                # (vd __cplusplus): giu nguyen dong #ifdef|#ifndef/#endif,
+                # van de quy vao noi dung ben trong de tiep tuc prune binh
+                # thuong.
+                branch = grp.branches[0]
+                directive_end = directive_end_line_idx(lines, branch.directive_line_idx)
+                out.extend(lines[branch.directive_line_idx:directive_end + 1])
+                render_items(branch.children, lines, target_fname, truths, macro_truth, unresolved, out)
+                out.extend(lines[grp.endif_line_idx:grp.endif_line_idx + 1])
             elif choice is not None:
                 branch = grp.branches[choice]
                 render_items(branch.children, lines, target_fname, truths, macro_truth, unresolved, out)
@@ -520,24 +721,38 @@ def explain_line(cpp_path, i_path, target_fname_in_i, line_no):
     grp, bi, branch, path = result
     choice = resolve_group(grp, lines, target_fname_in_i, truths, macro_truth, unresolved)
     line_text = lines[branch.directive_line_idx].rstrip('\r\n')
-    print(f"Dong {line_no} thuoc branch: {line_text.strip()}  (directive tai dong {branch.directive_line_idx+1})")
+    end_idx = directive_end_line_idx(lines, branch.directive_line_idx)
+    full_text = directive_full_text(lines, branch.directive_line_idx, end_idx)
+    span = f"{branch.directive_line_idx+1}-{end_idx+1}" if end_idx != branch.directive_line_idx else f"{branch.directive_line_idx+1}"
+    print(f"Dong {line_no} thuoc branch: {line_text.strip()}  (directive tai dong {span})")
 
     if choice == 'UNRESOLVED':
         print("KET LUAN: UNRESOLVED - khong suy luan duoc, script se GIU NGUYEN block nay.")
         for ln, txt, reason in unresolved:
             print(f"  Dong {ln}: {txt}\n    -> {reason}")
+        return
+    elif choice == 'GUARD':
+        print("KET LUAN: GUARD (include guard kinh dien, hoac #ifdef/#ifndef macro built-in")
+        print("  da biet nhu __cplusplus) - directive duoc GIU NGUYEN khong xoa, khong canh")
+        print("  bao; noi dung ben trong van duoc prune binh thuong.")
+        return
+    elif choice == 'SILENT_UNRESOLVED':
+        print("KET LUAN: SILENT_UNRESOLVED (macro built-in da biet nhu __cplusplus, nhung group")
+        print("  co nhieu nhanh nen khong the chon 1 nhanh de de quy) - GIU NGUYEN CA GROUP,")
+        print("  khong canh bao.")
+        return
     elif choice == bi:
         print("KET LUAN: SONG (branch nay duoc chon).")
     else:
         print("KET LUAN: DEAD (mot branch KHAC trong cung group moi la branch song).")
 
-    key = (target_fname_in_i, branch.directive_line_idx + 1)
+    key = (target_fname_in_i, end_idx + 1)
     if key in truths:
-        print(f"Bang chung: annotation 'evaluated by -frewrite-includes' tai dong {branch.directive_line_idx+1} cua .i => {'1 (true)' if truths[key] else '0 (false)'}")
+        print(f"Bang chung: annotation 'evaluated by -frewrite-includes' tai dong {end_idx+1} cua .i => {'1 (true)' if truths[key] else '0 (false)'}")
     else:
         kind = directive_kind(line_text)
         if kind in ('ifdef', 'ifndef'):
-            m = IFDEF_RE.match(line_text) or IFNDEF_RE.match(line_text)
+            m = IFDEF_RE.match(full_text) or IFNDEF_RE.match(full_text)
             macro = m.group(1) if m else None
             if macro in macro_truth:
                 print(f"Bang chung: suy luan qua ten macro '{macro}' (tim thay #if defined({macro}) noi khac trong file, gia tri: {macro_truth[macro]})")
