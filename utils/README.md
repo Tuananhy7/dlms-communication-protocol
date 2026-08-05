@@ -1,116 +1,118 @@
-# `prune_macros.py` — Thuat toan chi tiet
+# `prune_macros.py` — Detailed Algorithm
 
-Tai lieu mo ta logic tung buoc cua [prune_macros.py](prune_macros.py) (v2).
+Documentation describing the step-by-step logic of [prune_macros.py](prune_macros.py) (v2).
 
 ---
 
-## 1. Muc dich
+## 1. Purpose
 
-Script lay **ground truth** tu file `.i` (output cua `clang -E -frewrite-includes`
-hoac ARM Compiler 6) de biet nhanh `#if/#elif` nao **thuc su duoc compile** cho mot
-build config cu the, roi **xoa cac nhanh chet** trong file `.cpp/.h` goc, dong thoi
-**giu nguyen 100% format / comment / whitespace** cua nhanh song.
+The script uses the **ground truth** from the `.i` file (output of `clang -E -frewrite-includes`
+or ARM Compiler 6) to accurately determine which `#if/#elif` branches are **actually compiled**
+for a specific build config, then **removes the dead branches** in the original `.cpp/.h` file,
+while **preserving 100% of the format / comments / whitespace** of the live branch.
 
-### Y tuong cot loi
+### Core idea
 
-Voi `-frewrite-includes`, Clang in ra **CA HAI nhanh** (true va false) duoi dang raw
-text kem line marker day du. Tin hieu duy nhat phan biet la **chu so `0`/`1` ngay sau
-`#if` / `#elif`**:
+With `-frewrite-includes`, Clang prints out **BOTH branches** (true and false) as raw
+text with full line markers. The only signal distinguishing them is the **digit `0`/`1`
+right after `#if` / `#elif`**:
 
 ```c
 #if 1 /* evaluated by -frewrite-includes */
 # 42 "foo.cpp"
 ```
 
-Trich tu `clang/lib/Frontend/Rewrite/InclusionRewriter.cpp`:
+Excerpt from `clang/lib/Frontend/Rewrite/InclusionRewriter.cpp`:
 
 ```cpp
 OS << (elif ? "#elif " : "#if ") << (isTrue ? "1" : "0")
    << " /* evaluated by -frewrite-includes */" << MainEOL;
 ```
 
-> **Bai hoc tu v1:** thuat toan cu dua vao "co line marker + co noi dung ngay sau
-> => nhanh song" la **SAI**, vi ca hai nhanh deu co marker va noi dung.
+> **Lesson learned from v1:** the old algorithm relied on "has a line marker + has
+> content right after => live branch", which is **WRONG**, because both branches
+> have a marker and content.
 
 ---
 
-## 2. Cac regex chu chot
+## 2. Key regexes
 
-| Ten | Pattern | Dung de |
+| Name | Pattern | Used for |
 |---|---|---|
-| `LINE_MARKER_RE` | `^#\s+(\d+)\s+"((?:[^"\\]\|\\.)*)"\s*(.*)$` | Bat line marker `# N "file"` |
-| `DIRECTIVE_RE` | `^\s*#\s*(if\|ifdef\|ifndef\|elif\|else\|endif)\b(.*)$` | Nhan dien directive khi parse file goc |
-| `EVAL_RE` | `^\s*#\s*(if\|elif)\s+([01])\s*/\*\s*evaluated by -frewrite-includes` | Ground truth trong `.i` |
-| `MACRO_DEFINED_RE` | `^\s*#\s*(if\|elif)\s+defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?\s*$` | Dang don gian `defined(X)` |
-| `MACRO_NOTDEFINED_RE` | `^\s*#\s*(if\|elif)\s+!\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?\s*$` | Dang don gian `!defined(X)` |
-| `IFDEF_RE` / `IFNDEF_RE` | `^\s*#\s*ifdef\|ifndef\s+([A-Za-z_]\w*)\s*$` | Lay ten macro cua `#ifdef/#ifndef` |
+| `LINE_MARKER_RE` | `^#\s+(\d+)\s+"((?:[^"\\]\|\\.)*)"\s*(.*)$` | Match line marker `# N "file"` |
+| `DIRECTIVE_RE` | `^\s*#\s*(if\|ifdef\|ifndef\|elif\|else\|endif)\b(.*)$` | Recognize directives when parsing the original file |
+| `EVAL_RE` | `^\s*#\s*(if\|elif)\s+([01])\s*/\*\s*evaluated by -frewrite-includes` | Ground truth in `.i` |
+| `MACRO_DEFINED_RE` | `^\s*#\s*(if\|elif)\s+defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?\s*$` | Simple `defined(X)` form |
+| `MACRO_NOTDEFINED_RE` | `^\s*#\s*(if\|elif)\s+!\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?\s*$` | Simple `!defined(X)` form |
+| `IFDEF_RE` / `IFNDEF_RE` | `^\s*#\s*ifdef\|ifndef\s+([A-Za-z_]\w*)\s*$` | Extract the macro name from `#ifdef/#ifndef` |
 
 ---
 
-## 3. Thuat toan tung buoc
+## 3. Step-by-step algorithm
 
-### Buoc 0 — Nap input & resolve ten file
+### Step 0 — Load input & resolve filename
 
-- Doc `--cpp-file` thanh `lines[]` voi `newline=''` (giu nguyen CRLF/LF goc).
-- [`resolve_target_filename()`](prune_macros.py#L423-L447): neu `--target-name`
-  khong khop chinh xac ten trong line marker cua `.i`, fallback so khop theo
-  **basename** (chuan hoa `\` -> `/`).
-  - Dung 1 ung vien -> dung ung vien do.
-  - 0 hoac >1 ung vien -> in toan bo danh sach filename co trong `.i` roi `exit(1)`.
+- Read `--cpp-file` into `lines[]` with `newline=''` (preserving the original CRLF/LF).
+- [`resolve_target_filename()`](prune_macros.py#L423-L447): if `--target-name`
+  does not exactly match a name in the `.i` file's line markers, fall back to matching
+  by **basename** (normalizing `\` -> `/`).
+  - Exactly 1 candidate -> use that candidate.
+  - 0 or >1 candidates -> print the full list of filenames present in the `.i` file
+    and `exit(1)`.
 
-### Buoc 1 — Trich ground truth `#if/#elif` tu `.i`
+### Step 1 — Extract ground truth `#if/#elif` from `.i`
 
-Ham [`parse_i_eval_truths()`](prune_macros.py#L78-L110). Quet tuan tu, dung 1 bien
-trang thai `pending`:
+Function [`parse_i_eval_truths()`](prune_macros.py#L78-L110). Scans sequentially,
+using 1 state variable `pending`:
 
-1. Gap dong khop `EVAL_RE` -> `pending = (chu_so == '1')`, sang dong tiep.
-2. Dong **ngay sau** phai la line marker `# N "file"`:
-   - **Dung** -> than nhanh bat dau o dong `N` cua file goc, suy ra dong cua chinh
-     directive la **`N - 1`**. Ghi `truths[(file, N-1)] = pending`.
-   - **Sai** (hiem, vd `ShowLineMarkers` bi tat) -> bo qua entry (`pending = None`),
-     nhung van thu match dong hien tai voi `EVAL_RE`.
+1. When a line matches `EVAL_RE` -> `pending = (digit == '1')`, move to the next line.
+2. The line **right after** must be a line marker `# N "file"`:
+   - **Match** -> the branch body starts at line `N` of the original file, so the
+     directive's own line is **`N - 1`**. Record `truths[(file, N-1)] = pending`.
+   - **No match** (rare, e.g. `ShowLineMarkers` disabled) -> discard the entry
+     (`pending = None`), but still try to match the current line against `EVAL_RE`.
 
-**Ket qua:** `truths = {(filename, dong_directive_1based): bool}` — day la
-**GROUND TRUTH THAT SU**, khong phai suy doan.
+**Result:** `truths = {(filename, directive_line_1based): bool}` — this is the
+**ACTUAL GROUND TRUTH**, not a guess.
 
-> **Gia dinh:** directive nam gon tren 1 dong (khong co `\` noi dong).
+> **Assumption:** the directive fits on a single line (no line continuation via `\`).
 
-### Buoc 2 — Parse file goc thanh cay khoi dieu kien
+### Step 2 — Parse the original file into a conditional block tree
 
 #### 2a. Comment-aware scan
 
-[`compute_line_start_in_code()`](prune_macros.py#L143-L202) quet o cap **ky tu**,
-theo doi state:
+[`compute_line_start_in_code()`](prune_macros.py#L143-L202) scans at the
+**character** level, tracking state for:
 
 - block comment `/* */`
-- string literal `"..."` (co xu ly escape `\`)
-- char literal `'...'` (co xu ly escape `\`)
-- line comment `//` -> `break` het dong
+- string literal `"..."` (handles `\` escapes)
+- char literal `'...'` (handles `\` escapes)
+- line comment `//` -> `break` out for the rest of the line
 
-Tra ve `list[bool]`: **dau moi dong** co dang o code binh thuong hay khong. Muc dich:
-khong nham `#ifdef` nam trong block comment thanh directive that.
+Returns a `list[bool]`: whether **the start of each line** is in normal code or not.
+Purpose: avoid mistaking an `#ifdef` inside a block comment for a real directive.
 
-> **Gioi han:** khong xu ly raw string C++11 `R"(...)"` nhieu dong.
+> **Limitation:** does not handle multi-line C++11 raw strings `R"(...)"`.
 
-#### 2b. Xay cay bang stack
+#### 2b. Build the tree using a stack
 
 [`parse_conditional_tree()`](prune_macros.py#L205-L255):
 
-| Directive | Hanh dong |
+| Directive | Action |
 |---|---|
-| `#if` / `#ifdef` / `#ifndef` | flush doan code dang gom -> tao `Group` + `Branch` dau tien -> append `('group', grp)` vao output hien tai -> **push** stack |
-| `#elif` / `#else` | dong `content_end` cua branch truoc -> tao `Branch` moi -> doi output dich cua stack top |
-| `#endif` | dong branch cuoi -> set `endif_line_idx` -> **pop** stack |
+| `#if` / `#ifdef` / `#ifndef` | flush the code segment being collected -> create `Group` + first `Branch` -> append `('group', grp)` to the current output -> **push** stack |
+| `#elif` / `#else` | close `content_end` of the previous branch -> create a new `Branch` -> redirect the output target of the stack top |
+| `#endif` | close the last branch -> set `endif_line_idx` -> **pop** stack |
 
-**Cau truc du lieu:**
+**Data structures:**
 
 ```python
 @dataclass
 class Branch:
-    directive_line_idx: int   # index 0-based cua dong #if/#elif/#else
-    content_start: int        # index dong dau tien thuoc noi dung nhanh
-    content_end: int = None   # index dong directive ke tiep (exclusive)
-    children: list = []       # cac item long ben trong
+    directive_line_idx: int   # 0-based index of the #if/#elif/#else line
+    content_start: int        # index of the first line belonging to the branch content
+    content_end: int = None   # index of the next directive line (exclusive)
+    children: list = []       # nested items inside
 
 @dataclass
 class Group:
@@ -118,102 +120,106 @@ class Group:
     endif_line_idx: int = None
 ```
 
-Output la danh sach item long nhau, moi item la `('code', start, end)` hoac
-`('group', Group)`.
+The output is a list of nested items, each item being either `('code', start, end)`
+or `('group', Group)`.
 
-**Diem quan trong:** sau moi directive, `code_start = i + 1`, nen **dong directive
-khong bao gio nam trong item `'code'`** => directive tu dong bi xoa khi render.
+**Important point:** after every directive, `code_start = i + 1`, so **the directive
+line is never contained in a `'code'` item** => the directive is automatically
+dropped when rendering.
 
-**Loi cau truc** (`#elif` khong co `#if`, `#endif` thua, thieu `#endif`) -> raise
-`ValueError`.
+**Structural error** (`#elif` without a matching `#if`, extra `#endif`, missing
+`#endif`) -> raises `ValueError`.
 
-### Buoc 3 — Suy luan macro cho `#ifdef` / `#ifndef`
+### Step 3 — Infer macros for `#ifdef` / `#ifndef`
 
-**Van de:** Clang **khong** annotate `#ifdef/#ifndef` (khong co case rieng trong
-switch cua `InclusionRewriter`, roi vao `default` -> copy nguyen van bat ke true/false)
-=> `.i` **khong cho tin hieu true/false nao** cho hai directive nay.
+**Problem:** Clang does **not** annotate `#ifdef/#ifndef` (there is no dedicated case
+in `InclusionRewriter`'s switch, it falls into `default` -> copies verbatim regardless
+of true/false) => the `.i` file gives **no true/false signal** for these two
+directives.
 
-**Giai phap:** [`build_macro_truth_table()`](prune_macros.py#L299-L331) duyet toan bo
-cay, voi moi branch:
+**Solution:** [`build_macro_truth_table()`](prune_macros.py#L299-L331) walks the
+entire tree, and for each branch:
 
-- Neu `(file, dong)` co trong `truths` **VA** dong directive co dang **don gian**:
+- If `(file, line)` exists in `truths` **AND** the directive line has a **simple**
+  form:
   - `#if defined(X)` / `#elif defined(X)` -> `macro_truth[X] = val`
   - `#if !defined(X)` / `#elif !defined(X)` -> `macro_truth[X] = not val`
-- Dung `setdefault` => **lan gap dau tien thang**.
+- Uses `setdefault` => **first occurrence wins**.
 
-**Gia dinh:** trong 1 lan build, trang thai dinh nghia cua macro `X` khong doi.
-Script **khong** xu ly `#undef` xen giua.
+**Assumption:** within a single build, the defined-state of macro `X` does not
+change. The script does **not** handle interleaved `#undef`.
 
-> **Quirk trong code:** sau khi match `defined(X)` co `continue`, nen
-> [`walk(branch.children)`](prune_macros.py#L329) bi bo qua => macro nam **long ben
-> trong** mot nhanh `#if defined(X)` se khong duoc thu thap vao bang.
+> **Quirk in the code:** after matching `defined(X)` there is a `continue`, so
+> [`walk(branch.children)`](prune_macros.py#L329) is skipped => a macro nested
+> **inside** an `#if defined(X)` branch will not be collected into the table.
 
-### Buoc 4 — Resolve tung group
+### Step 4 — Resolve each group
 
-[`resolve_group()`](prune_macros.py#L334-L399) duyet moi branch cua group:
+[`resolve_group()`](prune_macros.py#L334-L399) walks each branch of the group:
 
-| Loai directive | Cach quyet dinh |
+| Directive type | Decision method |
 |---|---|
-| `if` / `elif` | Tra `truths[(file, dong)]`. Co & `True` -> ghi nhan `true_idx`. **Khong co key** -> them vao `unresolved` |
-| `ifdef X` | Tra `macro_truth[X]`. `True` -> `true_idx`. Khong co `X` -> `unresolved` |
-| `ifndef X` | Tra `macro_truth[X]`. **`False`** -> `true_idx`. Khong co `X` -> `unresolved` |
-| `else` | Khong xet o day — xu ly bang loai tru o duoi |
+| `if` / `elif` | Look up `truths[(file, line)]`. Present & `True` -> record `true_idx`. **No key present** -> add to `unresolved` |
+| `ifdef X` | Look up `macro_truth[X]`. `True` -> `true_idx`. No `X` present -> `unresolved` |
+| `ifndef X` | Look up `macro_truth[X]`. **`False`** -> `true_idx`. No `X` present -> `unresolved` |
+| `else` | Not evaluated here — handled below by exclusion logic |
 
-**Ket luan (theo thu tu uu tien):**
+**Conclusion (in priority order):**
 
-1. Co bat ky `unresolved` nao -> tra `'UNRESOLVED'` (an toan hon la doan bay).
-2. Co `true_idx` -> tra index do.
-   *(Vong lap ghi de nen neu co nhieu nhanh true, nhanh **cuoi cung** thang.)*
-3. Khong nhanh nao true **va** branch cuoi la `#else` -> chon `#else`
-   (logic loai tru cua chinh preprocessor).
-4. Con lai -> `None` = **ca group bi xoa**.
+1. If any `unresolved` exists -> return `'UNRESOLVED'` (safer than guessing).
+2. If `true_idx` exists -> return that index.
+   *(Since the loop overwrites, if multiple branches are true, the **last** one wins.)*
+3. No branch is true **and** the last branch is `#else` -> pick `#else`
+   (the preprocessor's own exclusion logic).
+4. Otherwise -> `None` = **the entire group is removed**.
 
-### Buoc 5 — Render output
+### Step 5 — Render output
 
-[`render_items()`](prune_macros.py#L402-L416), de quy:
+[`render_items()`](prune_macros.py#L402-L416), recursive:
 
-| Item | Hanh vi |
+| Item | Behavior |
 |---|---|
-| `('code', s, e)` | Copy nguyen xi `lines[s:e]` |
-| `('group', grp)` -> `'UNRESOLVED'` | Copy raw `lines[#if_dau : #endif+1]` — **giu nguyen tat ca**, ke ca group long ben trong |
-| `('group', grp)` -> `choice is not None` | **Chi** de quy vao `branch.children` cua nhanh song => directive `#if/#elif/#else/#endif` bien mat, noi dung giu nguyen byte-for-byte |
-| `('group', grp)` -> `None` | Khong xuat gi ca |
+| `('code', s, e)` | Copy `lines[s:e]` verbatim |
+| `('group', grp)` -> `'UNRESOLVED'` | Copy raw `lines[#if_start : #endif+1]` — **keep everything as-is**, including nested groups |
+| `('group', grp)` -> `choice is not None` | **Only** recurse into `branch.children` of the live branch => the `#if/#elif/#else/#endif` directives disappear, content is preserved byte-for-byte |
+| `('group', grp)` -> `None` | Output nothing |
 
-Ghi file bang `writelines()` voi `newline=''` -> bao toan line ending goc.
+Writes the file using `writelines()` with `newline=''` -> preserves the original
+line endings.
 
-### Buoc 6 — Bao cao
+### Step 6 — Report
 
-1. In `Da ghi: <output>  (X / Y dong con lai)`.
-2. Neu co `--defines-file`: [`export_defines_file()`](prune_macros.py#L274-L296)
-   xuat:
+1. Print `Written: <output>  (X / Y lines remaining)`.
+2. If `--defines-file` is given: [`export_defines_file()`](prune_macros.py#L274-L296)
+   exports:
    - Macro `True` -> `#define X`
-   - Macro `False` -> `/* #undef X */` (comment, chi de audit)
-3. Neu `unresolved` khong rong: in canh bao kem so dong + ly do, yeu cau kiem tra
-   thu cong.
+   - Macro `False` -> `/* #undef X */` (comment, for audit purposes only)
+3. If `unresolved` is not empty: print a warning with line numbers and reasons,
+   requesting manual review.
 
 ---
 
-## 4. So do luong
+## 4. Data flow diagram
 
 ```
-   .i file                          .cpp/.h goc
+   .i file                          original .cpp/.h
       |                                  |
       v                                  v
-[Buoc 1] parse_i_eval_truths      [Buoc 2a] compute_line_start_in_code
+[Step 1] parse_i_eval_truths      [Step 2a] compute_line_start_in_code
       |                                  |
       | truths                           v
-      | {(file,line): bool}       [Buoc 2b] parse_conditional_tree
+      | {(file,line): bool}       [Step 2b] parse_conditional_tree
       |                                  |
       |                                  | tree: [('code',s,e) | ('group',Group)]
       |                                  |
       +---------------+------------------+
                       |
                       v
-          [Buoc 3] build_macro_truth_table
+          [Step 3] build_macro_truth_table
                       |
                       | macro_truth {name: bool}
                       v
-          [Buoc 4+5] render_items / resolve_group
+          [Step 4+5] render_items / resolve_group
                       |
         +-------------+-------------+
         v                           v
@@ -222,42 +228,46 @@ Ghi file bang `writelines()` voi `newline=''` -> bao toan line ending goc.
 
 ---
 
-## 5. Cac che do CLI
+## 5. CLI modes
 
-| Che do | Dieu kien | Hanh vi |
+| Mode | Requirement | Behavior |
 |---|---|---|
-| `--list-files` | chi can `--i-file` | Liet ke moi filename trong line marker cua `.i` roi thoat |
-| `--explain-line N` | can `--cpp-file` | Audit 1 dong: thuoc branch nao, SONG / DEAD / UNRESOLVED, kem "bang chung" (annotation `.i` hay suy luan macro) |
-| `--defines-file` **khong** `--output` | can `--cpp-file` | Chi chay Buoc 1-3 va xuat bang macro, khong prune file nao |
-| Binh thuong | can `--cpp-file` + `--output` | Chay full Buoc 0-6 |
+| `--list-files` | only needs `--i-file` | Lists every filename found in the `.i` file's line markers, then exits |
+| `--explain-line N` | needs `--cpp-file` | Audits 1 line: which branch it belongs to, LIVE / DEAD / UNRESOLVED, with "evidence" (either `.i` annotation or macro inference) |
+| `--defines-file` **without** `--output` | needs `--cpp-file` | Only runs Steps 1-3 and exports the macro table, without pruning any file |
+| Normal | needs `--cpp-file` + `--output` | Runs the full Steps 0-6 |
 
-### Vi du
+### Examples
 
 ```bash
-# Liet ke filename co trong .i
+# List filenames present in .i
 python prune_macros.py --i-file main.i --list-files
 
 # Prune 1 file
 python prune_macros.py --i-file main.i --cpp-file main.c --output main.filtered.c
 
-# Prune + xuat danh sach macro suy luan duoc
+# Prune + export the list of inferred macros
 python prune_macros.py --i-file main.i --cpp-file main.c \
                        --output main.filtered.c --defines-file defines.h
 
-# Audit dong 123
+# Audit line 123
 python prune_macros.py --i-file main.i --cpp-file main.c --explain-line 123
 ```
 
 ---
 
-## 6. Gioi han can nho
+## 6. Limitations to keep in mind
 
-1. Chi prune **1 file** moi lan chay.
-2. Dieu kien phuc tap (vd `#if defined(A) && defined(B)`) resolve duoc cho **chinh no**
-   (nho annotation trong `.i`), nhung **khong** tach duoc tung macro rieng le de dua
-   vao `macro_truth` phuc vu `#ifdef/#ifndef`.
-3. `#undef` xen giua -> ket qua sai cho `#ifdef/#ifndef`. Script khong xu ly.
-4. Raw string C++11 nhieu dong `R"(...)"` co the pha comment-aware scan.
-5. Directive noi dong bang `\` co the lam lech mapping `N - 1` o Buoc 1.
-6. **BAT BUOC**: build lai `-E` tren file output va diff voi `.i` goc truoc khi dua
-   vao codebase that. Day la buoc bat buoc, khong phai tuy chon.
+1. Prunes only **1 file** per run.
+2. Complex conditions (e.g. `#if defined(A) && defined(B)`) can be resolved for
+   **the condition itself** (thanks to the `.i` annotation), but individual macros
+   **cannot** be extracted separately to feed into `macro_truth` for
+   `#ifdef/#ifndef`.
+3. Interleaved `#undef` -> incorrect result for `#ifdef/#ifndef`. Not handled by
+   the script.
+4. Multi-line C++11 raw strings `R"(...)"` can break the comment-aware scan.
+5. Directives continued across lines with `\` can throw off the `N - 1` mapping in
+   Step 1.
+6. **MANDATORY**: rebuild with `-E` on the output file and diff against the
+   original `.i` before putting it into the real codebase. This is a required
+   step, not optional.
