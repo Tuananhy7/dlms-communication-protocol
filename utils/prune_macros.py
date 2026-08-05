@@ -622,7 +622,16 @@ def render_items(items, lines, target_fname, truths, macro_truth, unresolved, ou
 # ---------------------------------------------------------------------------
 
 def resolve_target_filename(i_path, target_fname_in_i, truths):
-    """Neu ten khong khop chinh xac, thu tim theo basename (chuan hoa '\\' -> '/')."""
+    """
+    Neu ten khong khop CHINH XAC (dung case), thu tim theo:
+      1. Full path, KHONG PHAN BIET CHU HOA/THUONG.
+      2. Basename (chuan hoa '\\' -> '/'), cung KHONG PHAN BIET HOA/THUONG.
+    Ly do can buoc 1+2 khong phan biet hoa/thuong: Windows filesystem
+    khong phan biet hoa/thuong, nen .i (line marker thuong do preprocessor
+    tu sinh, hay o dang chu thuong nhu "main.c") va --cpp-file nguoi dung
+    truyen vao (co the viet hoa, vd "MAIN.c") thuong tro toi CUNG 1 file
+    vat ly du khac nhau ve chu hoa/thuong.
+    """
     all_files = set(f for (f, _) in truths.keys())
     # Bo sung them cac ten file tu marker thuan tuy (truong hop khong co
     # bat ky #if/#elif nao trong file - vi du header thuan khai bao).
@@ -635,10 +644,19 @@ def resolve_target_filename(i_path, target_fname_in_i, truths):
     if target_fname_in_i in all_files:
         return target_fname_in_i
 
-    def norm_basename(p):
-        return os.path.basename(p.replace('\\', '/'))
+    def norm_path(p):
+        return p.replace('\\', '/').lower()
 
-    candidates = [k for k in all_files if norm_basename(k) == norm_basename(target_fname_in_i)]
+    def norm_basename(p):
+        return os.path.basename(norm_path(p))
+
+    target_norm = norm_path(target_fname_in_i)
+    exact_ci = [k for k in all_files if norm_path(k) == target_norm]
+    if len(exact_ci) == 1:
+        return exact_ci[0]
+
+    target_basename = norm_basename(target_fname_in_i)
+    candidates = [k for k in all_files if norm_basename(k) == target_basename]
     if len(candidates) == 1:
         return candidates[0]
 
